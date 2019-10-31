@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Unknown Decoder</title>
+		<!-- CDN: (for prototyping) -->
+		<!-- <script src="https://cdn.jsdelivr.net/npm/babel-polyfill/dist/polyfill.min.js"></script> -->
+		<script src="https://cdn.jsdelivr.net/npm/vue@2.6.10/dist/vue.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/vuetify@2.0.15/dist/vuetify.min.js"></script>
+		<link  href="https://cdn.jsdelivr.net/npm/vuetify@2.0.15/dist/vuetify.min.css" rel="stylesheet" />
+
+		<!-- LATEST MINOR REVISIONS:
+		<script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/vuetify@2.x.x/dist/vuetify.min.js"></script>
+		<link  href="https://cdn.jsdelivr.net/npm/vuetify@2.x.x/dist/vuetify.min.css" rel="stylesheet" />
+		-->
+
+		<!-- Vuetify V2 Icons: -->
+		<link href="https://cdn.jsdelivr.net/npm/@mdi/font@3.x/css/materialdesignicons.min.css" rel="stylesheet" />
+		<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet" />
+
+		<!-- SELF HOSTED: Ensure library availability even if there is no internet access:
+		<script src="./libs/vue.min.js"></script>
+		<script src="./libs/vuetify.min.js"></script>
+		<link  href="./libs/vuetify.min.css"				rel="stylesheet"/>
+		<link  href="./libs/materialdesignicons.min.css"	rel="stylesheet"/>
+		-->
+	</head>
+	<body>
+		<div id="vue-root"></div>
+		<script type="text/x-template" id="vue-app-template">
+			<v-app>
+				<v-container fluid class="py-0 px-2">
+				
+					<v-row>
+						<v-col cols="12">
+							<h3 class="title mr-7">UNKNOWN DECODER</h3>
+							<h5 class="subtitle">✓ Find the content behind an encoded text that uses unknown codification.</h5>
+							<div class="app-menu">
+								<a href="https://github.com/LazaroOnline/UnknownDecoder">
+									<svg height="32" width="32" viewBox="0 0 16 16" style="fill:chartreuse">
+										<path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path>
+									</svg>
+								</a>
+							</div>
+						</v-col>
+					</v-row>
+
+					<h2 color="primary">Encoded Text</h2>
+					<v-row no-gutters dense>
+						<v-col cols="12">
+							<v-textarea clearable v-model="encodedText" label="Encoded text" style="background-color:dimgray" />
+						</v-col>
+					</v-row>
+
+					<h2 color="primary">Decoded attempts</h2>
+					<v-row no-gutters dense>
+						<v-col cols="12">
+							Image Base64:
+						</v-col>
+						<v-col cols="12">
+							<img :src="'data:image/jpeg;base64, ' + encodedText" class="imageBase64"/>
+						</v-col>
+
+						<v-col cols="12">
+							<v-text-field readonly v-model="decodedTextUtf16" label="Decoded text utf-16" />
+						</v-col>
+						<v-col cols="12">
+							<v-text-field readonly v-model="decodedTextUtf8" label="Decoded Text Utf-8" />
+						</v-col>
+
+					</v-row>
+	
+					<h2>Decoder</h2>
+					<v-row no-gutters>
+						<v-col cols="12">
+							<v-text-field clearable v-model="encodedText" label="Encoded text" />
+						</v-col>
+	
+						<v-col cols="12">
+							<v-textarea readonly v-model="decodedTextUtf16" label="Decoded text as Utf-16" :class="{'txt-error': isErrorDecodingUtf16}"/>
+						</v-col>
+	
+						<v-col cols="12">
+							<v-textarea readonly v-model="decodedTextUtf8" label="Decoded text as Utf-8" :class="{'txt-error': isErrorDecodingUtf8}"/>
+						</v-col>
+						
+					</v-row>
+				</v-container>
+			</v-app>
+		</script>
+	</body>
+</html>
+<style>
+.title,
+.subtitle {
+	color: chartreuse;
+}
+.app-menu {
+	position: absolute;
+    right: 5px;
+    top: 5px;
+}
+.txt-console input {
+	font-family: monospace !important;
+	color: gray !important;
+}
+.txt-error textarea,
+.txt-error input {
+	background-color: rgba(255, 0, 0, 0.15);
+}
+</style>
+
+<script>
+// ------------------------------------------------------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------------------------------------------------------
+"use strict";
+/*\
+|*| Base64 / binary data / UTF-8 strings utilities (#1)
+|*| https://developer.mozilla.org/en-US/docs/Web/API/WindowBase64/Base64_encoding_and_decoding#Solution_1_%E2%80%93_JavaScript's_UTF-16_%3E_base64
+|*| Author: madmurphy
+\*/
+
+/* Array of bytes to base64 string decoding */
+function b64ToUint6 (nChr) {
+	return nChr > 64 && nChr < 91 ?
+		nChr - 65
+	: nChr > 96 && nChr < 123 ?
+		nChr - 71
+	: nChr > 47 && nChr < 58 ?
+		nChr + 4
+	: nChr === 43 ?
+		62
+	: nChr === 47 ?
+		63
+	:
+		0;
+}
+
+function base64DecToArr (sBase64, nBlockSize) {
+	var sB64Enc = sBase64.replace(/[^A-Za-z0-9\+\/]/g, ""), nInLen = sB64Enc.length
+	var nOutLen = nBlockSize ? Math.ceil((nInLen * 3 + 1 >>> 2) / nBlockSize) * nBlockSize : nInLen * 3 + 1 >>> 2, aBytes = new Uint8Array(nOutLen);
+
+	for (var nMod3, nMod4, nUint24 = 0, nOutIdx = 0, nInIdx = 0; nInIdx < nInLen; nInIdx++) {
+		nMod4 = nInIdx & 3;
+		nUint24 |= b64ToUint6(sB64Enc.charCodeAt(nInIdx)) << 18 - 6 * nMod4;
+		if (nMod4 === 3 || nInLen - nInIdx === 1) {
+		for (nMod3 = 0; nMod3 < 3 && nOutIdx < nOutLen; nMod3++, nOutIdx++) {
+			aBytes[nOutIdx] = nUint24 >>> (16 >>> nMod3 & 24) & 255;
+		}
+		nUint24 = 0;
+		}
+	}
+	return aBytes;
+}
+
+/* Base64 string to array encoding */
+function uint6ToB64 (nUint6) {
+	return nUint6 < 26 ?
+		nUint6 + 65
+	: nUint6 < 52 ?
+		nUint6 + 71
+	: nUint6 < 62 ?
+		nUint6 - 4
+	: nUint6 === 62 ?
+		43
+	: nUint6 === 63 ?
+		47
+	:
+		65;
+}
+
+function base64EncArr (aBytes) {
+	var eqLen = (3 - (aBytes.length % 3)) % 3, sB64Enc = "";
+	for (var nMod3, nLen = aBytes.length, nUint24 = 0, nIdx = 0; nIdx < nLen; nIdx++) {
+		nMod3 = nIdx % 3;
+		/* Uncomment the following line in order to split the output in lines 76-character long: */
+		/*
+		if (nIdx > 0 && (nIdx * 4 / 3) % 76 === 0) { sB64Enc += "\r\n"; }
+		*/
+		nUint24 |= aBytes[nIdx] << (16 >>> nMod3 & 24);
+		if (nMod3 === 2 || aBytes.length - nIdx === 1) {
+			sB64Enc += String.fromCharCode(uint6ToB64(nUint24 >>> 18 & 63), uint6ToB64(nUint24 >>> 12 & 63), uint6ToB64(nUint24 >>> 6 & 63), uint6ToB64(nUint24 & 63));
+			nUint24 = 0;
+		}
+	}
+	return eqLen === 0 ?
+		sB64Enc :
+		sB64Enc.substring(0, sB64Enc.length - eqLen) + (eqLen === 1 ? "=" : "==");
+}
+</script>
+<script>
+
+function encodeBase64Utf16 (plainText) {
+	if (!plainText)
+		return ''
+	var aUTF16CodeUnits = new Uint16Array(plainText.length)
+	Array.prototype.forEach.call(aUTF16CodeUnits, function (el, idx, arr) { arr[idx] = plainText.charCodeAt(idx); })
+	var sUTF16Base64 = base64EncArr(new Uint8Array(aUTF16CodeUnits.buffer))
+	return sUTF16Base64
+}
+
+function decodeBase64Utf16 (encodedText) {
+	if (!encodedText)
+		return ''
+	//return atob(encodedText) // This would display strange characters betwen normal characters.
+	var sDecodedString = String.fromCharCode.apply(null, new Uint16Array(base64DecToArr(encodedText, 2).buffer))
+	return sDecodedString
+}
+
+function encodeBase64Utf8(plainText) {
+	if (!plainText)
+		return ''
+	return window.btoa(unescape(encodeURIComponent(plainText)))
+}
+/** Some special characters won't be rendered in IE11 */
+function decodeBase64Utf8(encodedText) {
+	if (!encodedText)
+			return ''
+	return decodeURIComponent(escape(window.atob(encodedText)))
+}
+</script>
+<script>
+
+var App = {
+	template: '#vue-app-template',
+	name: 'App',
+	data() {
+		return {
+			encodedText: ''
+			,isErrorDecodingUtf8: false
+			,isErrorDecodingUtf16: false
+		}
+	},
+	computed: {
+		/*
+		decodedTextUtf8() {
+			return decodeBase64Utf8(this.encodedText)
+		},
+		decodedTextUtf16() {
+			return decodeBase64Utf16(this.encodedText)
+		},
+		*/
+		decodedTextUtf16() {
+			try {
+				var result = decodeBase64Utf16(this.encodedText)
+				this.isErrorDecodingUtf16 = false
+				return result
+			} catch(ex) {
+				this.isErrorDecodingUtf16 = true
+				return ''
+			}
+		},
+		decodedTextUtf8() {
+			try {
+				var result = decodeBase64Utf8(this.encodedText)
+				this.isErrorDecodingUtf8 = false
+				return result
+			} catch(ex) {
+				this.isErrorDecodingUtf8 = true
+				return ''
+			}
+		 },
+	},
+}
+var vuetify = new Vuetify({
+	theme: {
+		dark: true,
+		themes: {
+			dark: {
+				base:		'#7fff00',
+				accent: 	'#7fff00',
+				primary: 	'#7fff00',
+				secondary:	'#7fff00',
+				tertiary: 	'#7fff00',
+				success: 	'#7fff00',
+				info:		'#7fff00',
+				warning: 	'#7fff00',
+				error: 		'#7fff00',
+				label:		'#7fff00',
+				text:		'#7fff00',
+				// 'primary--text':	'#7fff00',
+				// 'secondary--text':	'#7fff00',
+				lighten5:	'#7fff00',
+				lighten4:	'#7fff00',
+				lighten3:	'#7fff00',
+				lighten2:	'#7fff00',
+				lighten1:	'#7fff00',
+				darken1:	'#7fff00',
+				darken2:	'#7fff00',
+				darken3:	'#7fff00',
+				darken4:	'#7fff00',
+			},
+		}
+	}
+})
+var vueApp = new Vue({
+	vuetify,
+	render: h => h(App),
+}).$mount('#vue-root')
+
+</script>
