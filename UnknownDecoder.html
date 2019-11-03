@@ -65,25 +65,9 @@
 							<v-text-field readonly v-model="decodedTextUtf16" label="Decoded text utf-16" />
 						</v-col>
 						<v-col cols="12">
-							<v-text-field readonly v-model="decodedTextUtf8" label="Decoded Text Utf-8" />
-						</v-col>
-
-					</v-row>
-	
-					<h2>Decoder</h2>
-					<v-row no-gutters>
-						<v-col cols="12">
-							<v-text-field clearable v-model="encodedText" label="Encoded text" />
-						</v-col>
-	
-						<v-col cols="12">
-							<v-textarea readonly v-model="decodedTextUtf16" label="Decoded text as Utf-16" :class="{'txt-error': isErrorDecodingUtf16}"/>
-						</v-col>
-	
-						<v-col cols="12">
 							<v-textarea readonly v-model="decodedTextUtf8" label="Decoded text as Utf-8" :class="{'txt-error': isErrorDecodingUtf8}"/>
 						</v-col>
-						
+
 					</v-row>
 				</v-container>
 			</v-app>
