@@ -33,6 +33,7 @@
 	</head>
 	<body>
 		<div id="vue-root"></div>
+
 		<script type="text/x-template" id="vue-app-template">
 			<v-app>
 				<v-container fluid class="py-0 px-2">
@@ -51,36 +52,50 @@
 						</v-col>
 					</v-row>
 
-					<h2 color="primary">Encoded Text</h2>
+					<h2 color="primary">Enter an encoded text:</h2>
 					<v-row no-gutters dense>
 						<v-col cols="12">
 							<v-textarea clearable v-model="encodedText" label="Encoded text" style="background-color:dimgray" />
 						</v-col>
 					</v-row>
 
-					<h2 color="primary">Decoded attempts</h2>
-					<v-row no-gutters dense>
-						<v-col cols="12">
-							Decoded as Base64 Image:
-						</v-col>
-						<v-col cols="12">
-							<img :src="'data:image/jpeg;base64, ' + encodedText" class="imageBase64"/>
-						</v-col>
+					<template v-if="hasValueEncodedText">
+						<h2 color="primary">Decode attempts</h2>
+						<v-row no-gutters dense>
 
-						<v-col cols="12">
-							<v-text-field readonly v-model="decodedTextUtf16" label="Decoded as Base64 Utf-16" />
-						</v-col>
-						<v-col cols="12">
-							<v-textarea readonly v-model="decodedTextUtf8" label="Decoded as Base64 Utf-8" :class="{'txt-error': isErrorDecodingUtf8}"/>
-						</v-col>
+							<v-col cols="12" class="mb-4"
+								:class="{'txt-error': hasErrorDecodingBase64Image}"
+								>
+								<div class="decoder-label">Decoded as Base64 Image:</div>
+								<img :src="'data:image/jpeg;base64, ' + encodedText"
+									class="imageBase64"
+									@load="hasErrorDecodingBase64Image = false"
+									@error="hasErrorDecodingBase64Image = true"
+								/>
+							</v-col>
+		
+							<template v-for="(decoder, index) in textDecoderMethodList">
+								<v-col cols="12" key="index">
+									<TextDecoder :value="encodedText" :label="decoder.name" :decoderMethod="decoder.method" />
+								</v-col>
+							</template>
 
-						<v-col cols="12">
-							<v-text-field readonly v-model="decodedJwt" label="Decoded as JWT" />
-						</v-col>
-					</v-row>
+						</v-row>
+					</template>
+
 				</v-container>
 			</v-app>
 		</script>
+
+		<script type="text/x-template" id="text-decoder">
+			<v-text-field
+				:value="decoded"
+				:label="'decoded as ' + label"
+				:class="{'txt-error': hasErrorDecoding}"
+				readonly
+				/>
+		</script>
+
 	</body>
 </html>
 <style>
@@ -90,16 +105,22 @@
 }
 .app-menu {
 	position: absolute;
-    right: 5px;
-    top: 5px;
+	right: 5px;
+	top: 5px;
 }
 .txt-console input {
 	font-family: monospace !important;
 	color: gray !important;
 }
+/*
 .txt-error textarea,
-.txt-error input {
+.txt-error input,
+*/
+.txt-error {
 	background-color: rgba(255, 0, 0, 0.15);
+}
+.decoder-label {
+	opacity: 0.7;
 }
 </style>
 
@@ -214,52 +235,67 @@ function decodeBase64Utf8(encodedText) {
 </script>
 <script>
 
-var App = {
-	template: '#vue-app-template',
-	name: 'App',
+var decodeJwt = (encodedText) => {
+	var decoded = jwt_decode(encodedText)
+	return JSON.stringify(decoded, null, 2)
+}
+
+var TextDecoder = {
+	template: '#text-decoder',
+	name: 'TextDecoder',
+	props: {
+		value: { type: String, default: ''},
+		label: { type: String, default: 'decoded as...'},
+		decoderMethod: { type: Function, default: ()=> null },
+	},
 	data() {
 		return {
-			encodedText: ''
-			,isErrorDecodingUtf8: false
-			,isErrorDecodingUtf16: false
+			encodedText: '',
+			hasErrorDecoding: false,
 		}
 	},
 	computed: {
-		/*
-		decodedTextUtf8() {
-			return decodeBase64Utf8(this.encodedText)
+		decoded() {
+			return this.decode(this.value)
 		},
-		decodedTextUtf16() {
-			return decodeBase64Utf16(this.encodedText)
-		},
-		*/
-		decodedTextUtf16() {
+	},
+	methods: {
+		decode(encodedText) {
+			var isNullOrEmptyText = encodedText == null || encodedText == ''
+			if (isNullOrEmptyText) {
+				this.hasErrorDecoding = false
+				return ''
+			}
 			try {
-				var result = decodeBase64Utf16(this.encodedText)
-				this.isErrorDecodingUtf16 = false
+				var result = this.decoderMethod(encodedText)
+				this.hasErrorDecoding = false
 				return result
 			} catch(ex) {
-				this.isErrorDecodingUtf16 = true
-				return ''
+				this.hasErrorDecoding = true
 			}
+			return ''
 		},
-		decodedTextUtf8() {
-			try {
-				var result = decodeBase64Utf8(this.encodedText)
-				this.isErrorDecodingUtf8 = false
-				return result
-			} catch(ex) {
-				this.isErrorDecodingUtf8 = true
-				return ''
-			}
-		 },
-		 decodedJwt() {
-			try {
-				var decoded = jwt_decode(this.encodedText)
-				return JSON.stringify(decoded, null, 2)
-			} catch {
-				return ''
-			}
+	},
+}
+
+var App = {
+	template: '#vue-app-template',
+	name: 'App',
+	components: { TextDecoder },
+	data() {
+		return {
+			encodedText: '',
+			textDecoderMethodList: [
+				{ name: 'Base64 Utf-16',	method: decodeBase64Utf16	},
+				{ name: 'Base64 Utf-8',		method: decodeBase64Utf8	},
+				{ name: 'JWT', 				method: decodeJwt 			},
+			],
+			hasErrorDecodingBase64Image: false,
+		}
+	},
+	computed: {
+		hasValueEncodedText() {
+			return this.encodedText != null && this.encodedText != ''
 		},
 	},
 }
